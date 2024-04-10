@@ -1,0 +1,26 @@
+    {# En cliente/listar.html.twig #}
+    {% extends 'base.html.twig' %}
+
+    {% block body %}
+        <h1>Listado de Departamentos</h1>
+        
+        <ul>
+            {% for departamento in departamentos %}
+
+                    <p></p><br> <li>ID: {{ departamento.id }} - {{ departamento.nombre }}                    
+
+                    {# Botón para actualizar usuario #}
+                    &nbsp;<a href="{{ path('departamento_actualizar', {'id': departamento.id}) }}" >Actualizar Usuario</a>
+
+                    {# Botón para eliminar usuario #}
+                    &nbsp;<a href="{{ path('departamento_borrar', {'id': departamento.id}) }}" >Eliminar Usuario</a>
+
+                </li>
+            {% endfor %}
+        </ul>
+        
+        {# Botón para redirigir a la creación de usuario #}
+        <br>&nbsp; &nbsp; &nbsp;<a href="{{ path('departamento_nuevo') }}" class="btn btn-secondary boton_listado">Crear Usuario</a>
+        {# Enlace al archivo CSS en el mismo directorio #}
+        <link rel="stylesheet" href="{{ asset('css/crear_usuario.css') }}">
+    {% endblock %}

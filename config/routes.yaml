@@ -1,0 +1,49 @@
+controllers:
+  resource: ../src/Controller/
+  type: attribute
+# config/routes.yaml
+
+cliente_listar:
+  path: /clientes/listar
+  controller: App\Controller\ClienteController::listarClientes
+
+# clienteid_listar:
+#     controller: App\Controller\ClienteController::listarClientesId
+
+departamento_listar:
+  path: /departamentos/listar
+  controller: App\Controller\DepartamentosController::listarDepartamentos
+departamentoid_listar:
+  path: /departamentos/listar/{id}
+  controller: App\Controller\DepartamentosController::listarDepartamentosId
+
+registro_usuario:
+  path: /usuario/registro
+  controller: App\Controller\UsuarioController::registro
+
+login_usuario:
+  path: /usuario/login
+  controller: App\Controller\UsuarioController::login
+
+perfil_usuario:
+  path: /usuario/editarPerfil
+  controller: App\Controller\UsuarioController::editarPerfil
+
+nueva_incidencia:
+  path: /incidencia/registrar
+  controller: App\Controller\IncidenciaController::nuevaIncidencia
+  
+ver_incidencia:
+  path: /incidencias/ver
+  controller: App\Controller\IncidenciaController:ver_incidencias_usuario_cargo_2
+
+actualizar_incidencia:
+  path: /incidencia/actualizar
+  controller: App\Controller\IncidenciaController::actualizarTicket
+
+# cliente:
+#     resource: App\Controller\ClienteController
+#     type: annotation
+
+# routes.yaml
+

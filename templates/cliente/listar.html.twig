@@ -1,0 +1,27 @@
+    {# En cliente/listar.html.twig #}
+    {% extends 'base.html.twig' %}
+
+    {% block body %}
+        <h1>Listado de Clientes</h1>
+        
+        <ul>
+            {% for cliente in clientes %}
+
+                    <p></p><br> <li>ID: {{ cliente.id }} - {{ cliente.nombre }} {{ cliente.apellidos }} - {{ cliente.email }} - {{ cliente.fechaNacimiento|date('Y-m-d') }} - {{ cliente.direccion }}
+                    
+
+                    {# Botón para actualizar usuario #}
+                    &nbsp;<a href="{{ path('cliente_actualizar', {'id': cliente.id}) }}" >Actualizar Usuario</a>
+
+                    {# Botón para eliminar usuario #}
+                    &nbsp;<a href="{{ path('cliente_borrar', {'id': cliente.id}) }}" >Eliminar Usuario</a>
+
+                </li>
+            {% endfor %}
+        </ul>
+        
+        {# Botón para redirigir a la creación de usuario #}
+        <br>&nbsp; &nbsp; &nbsp;<a href="{{ path('cliente_nuevo') }}" class="btn btn-secondary boton_listado">Crear Usuario</a>
+        {# Enlace al archivo CSS en el mismo directorio #}
+        <link rel="stylesheet" href="{{ asset('css/crear_usuario.css') }}">
+    {% endblock %}

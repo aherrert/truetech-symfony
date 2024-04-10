@@ -1,0 +1,20 @@
+{# En cliente/nuevo.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <h1>Nuevo departamento</h1>
+
+        <form method="POST" action="{{ path('departamento_nuevo') }}">
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" required>
+
+        <button type="submit" class="btn btn-primary">Enviar</button>
+    </form>
+    {# Botón para redirigir a la vista #}
+    <p></p><a href="{{ path('departamento_listar') }}" class="btn btn-secondary boton_listado">Ver Listado de Clientes</a>
+
+    {# Enlace al archivo CSS en el mismo directorio #}
+    <link rel="stylesheet" href="{{ asset('css/crear_usuario.css') }}">
+
+
+{% endblock %}

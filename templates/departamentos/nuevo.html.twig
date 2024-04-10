@@ -1,0 +1,32 @@
+{# En cliente/nuevo.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <h1>Nuevo Cliente</h1>
+
+        <form method="POST" action="{{ path('cliente_nuevo') }}">
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" required>
+
+        <p></p><label for="apellidos">Apellidos:</label>
+        <input type="text" id="apellidos" name="apellidos" required>
+
+        <p></p><label for="email">Email:</label>
+        <input type="email" id="email" name="email" required>
+
+        <p></p><label for="fecha_nacimiento">Fecha de Nacimiento:</label>
+        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" required>
+
+        <p></p><label for="direccion">Dirección:</label>
+        <input type="text" id="direccion" name="direccion" required>
+
+        <button type="submit" class="btn btn-primary">Enviar</button>
+    </form>
+    {# Botón para redirigir a la vista #}
+    <p></p><a href="{{ path('cliente_listar') }}" class="btn btn-secondary boton_listado">Ver Listado de Clientes</a>
+
+    {# Enlace al archivo CSS en el mismo directorio #}
+    <link rel="stylesheet" href="{{ asset('css/crear_usuario.css') }}">
+
+
+{% endblock %}

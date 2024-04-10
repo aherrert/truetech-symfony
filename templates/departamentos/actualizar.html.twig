@@ -1,0 +1,20 @@
+{# cliente/actualizar.html.twig #}
+
+{% extends 'base.html.twig' %}
+
+{% block title %}Actualizar Departamento{% endblock %}
+
+{% block body %}
+    <h1>Actualizar Departamento</h1>
+
+    {{ form_start(form) }}
+    {{ form_row(form.nombre) }}
+    <p></p><button type="submit" class="btn btn-warning">Actualizar Departamento</button>
+    {{ form_end(form) }}
+
+
+    <p><a href="{{ path('departamento_listar') }}" class="btn btn-secondary boton_listado">Volver a la lista de clientes</a></p>
+
+    {# Enlace al archivo CSS en el mismo directorio #}
+    <link rel="stylesheet" href="{{ asset('css/crear_usuario.css') }}">
+{% endblock %}

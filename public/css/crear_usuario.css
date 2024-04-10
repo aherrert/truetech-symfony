@@ -1,0 +1,10 @@
+/* En tu archivo de estilos CSS */
+.boton_listado {
+   /* background-color: #64FF61; /* Color de fondo del botón */
+    background: linear-gradient(to bottom, #13cf02, #4dfd5f);
+    color: black; /* Color del texto del botón */
+    padding: 10px 20px; /* Espaciado interno del botón */
+    text-decoration: none; /* Quitar subrayado del enlace */
+    border-radius: 10px; /* Bordes redondeados */
+    /* Otros estilos que desees agregar */
+}
