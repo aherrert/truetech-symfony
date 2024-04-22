@@ -1,13 +1,15 @@
 <?php
 
 namespace App\Entity;
+use App\Entity\Usuario;
+
 
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Incidencia
  *
- * @ORM\Table(name="incidencia", indexes={@ORM\Index(name="empleado_id", columns={"empleado_id"})})
+ * @ORM\Table(name="incidencia", uniqueConstraints={@ORM\UniqueConstraint(name="email", columns={"email"})}, indexes={@ORM\Index(name="empleado_id", columns={"empleado_id"})})
  * @ORM\Entity
  */
 class Incidencia
@@ -20,41 +22,34 @@ class Incidencia
      * @ORM\GeneratedValue(strategy="IDENTITY")
      */
     private $id;
-    public function getId(): ?int
-    {
-        return $this->id;
-    } 
-    /**
-     * @var string|null
-     *
-     * @ORM\Column(name="nombre_completo", type="string", length=255, nullable=true)
-     */
-    private $nombreCompleto;
-    public function getNombreCompleto(): ?string
-    {
-        return $this->nombreCompleto;
-    }
-    /**
-     * @var string|null
-     *
-     * @ORM\Column(name="asunto_reparacion", type="string", length=255, nullable=true)
-     */
-    private $asuntoReparacion;
 
     /**
      * @var string|null
      *
-     * @ORM\Column(name="mensaje_reparacion", type="string", length=255, nullable=true)
+     * @ORM\Column(name="nombre_completo", type="string", length=255, nullable=true, options={"default"="NULL"})
      */
-    private $mensajeReparacion;
+    private $nombreCompleto = 'NULL';
 
     /**
-     * @var string
+     * @var string|null
      *
-     * @ORM\Column(name="estado", type="string", length=255, nullable=false, options={"default"="activo"})
+     * @ORM\Column(name="asunto_reparacion", type="string", length=255, nullable=true, options={"default"="NULL"})
      */
-    private $estado = 'activo'; // Por defecto, el estado se establece en "activo"
+    private $asuntoReparacion = 'NULL';
 
+    /**
+     * @var string|null
+     *
+     * @ORM\Column(name="mensaje_reparacion", type="string", length=255, nullable=true, options={"default"="NULL"})
+     */
+    private $mensajeReparacion = 'NULL';
+
+    /**
+     * @var string|null
+     *
+     * @ORM\Column(name="estado", type="string", length=255, nullable=true, options={"default"="NULL"})
+     */
+    private $estado = 'NULL';
 
     /**
      * @var string|null
@@ -73,75 +68,18 @@ class Incidencia
      */
     private $empleado;
 
-    public function setEmpleado($empleado)
+    // Getters
+
+    public function getId(): ?int
     {
-        $this->empleado = $empleado;
+        return $this->id;
     }
 
-    /**
-     * Set the value of email
-     *
-     * @param string|null $email
-     * @return self
-     */
-    public function setEmail(?string $email): self
+    public function getNombreCompleto(): ?string
     {
-        $this->email = $email;
-
-        return $this;
+        return $this->nombreCompleto;
     }
 
-    /**
-     * Set the value of nombreCompleto
-     *
-     * @param string|null $nombreCompleto
-     * @return self
-     */
-    public function setNombreCompleto(?string $nombreCompleto): self
-    {
-        $this->nombreCompleto = $nombreCompleto;
-
-        return $this;
-    }
-
-    /**
-     * Set the value of asuntoReparacion
-     *
-     * @param string|null $asuntoReparacion
-     * @return self
-     */
-    public function setAsuntoReparacion(?string $asuntoReparacion): self
-    {
-        $this->asuntoReparacion = $asuntoReparacion;
-
-        return $this;
-    }
-
-    /**
-     * Set the value of mensajeReparacion
-     *
-     * @param string|null $mensajeReparacion
-     * @return self
-     */
-    public function setMensajeReparacion(?string $mensajeReparacion): self
-    {
-        $this->mensajeReparacion = $mensajeReparacion;
-
-        return $this;
-    }
-
-    /**
-     * Set the value of estado
-     *
-     * @param string|null $estado
-     * @return self
-     */
-    public function setEstado(?string $estado): self
-    {
-        $this->estado = $estado;
-
-        return $this;
-    }
     public function getAsuntoReparacion(): ?string
     {
         return $this->asuntoReparacion;
@@ -161,4 +99,49 @@ class Incidencia
     {
         return $this->email;
     }
+    
+    // Setters
+
+    public function setNombreCompleto(?string $nombreCompleto): self
+    {
+        $this->nombreCompleto = $nombreCompleto;
+
+        return $this;
+    }
+
+    public function setAsuntoReparacion(?string $asuntoReparacion): self
+    {
+        $this->asuntoReparacion = $asuntoReparacion;
+
+        return $this;
+    }
+
+    public function setMensajeReparacion(?string $mensajeReparacion): self
+    {
+        $this->mensajeReparacion = $mensajeReparacion;
+
+        return $this;
+    }
+
+    public function setEstado(?string $estado): self
+    {  
+        $this->estado = $estado;
+
+        return $this;
+    }
+
+    public function setEmail(?Usuario $email): self
+    {
+        $this->email = $email;
+    
+        return $this;
+    }  
+
+    public function setEmpleado(?Usuario $empleado): self
+    {
+        $this->empleado = $empleado;
+
+        return $this;
+    }
+
 }
