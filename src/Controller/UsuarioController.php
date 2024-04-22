@@ -47,7 +47,7 @@ class UsuarioController extends AbstractController
         $usuario->setPassword($data['password']);
 
         // Establecer el rol automáticamente
-        $usuario->setRol('usuario'); // Por ejemplo, aquí establecemos el rol como 'usuario'
+        $usuario->setIdCargo(4); // Por ejemplo, aquí establecemos el rol como 'usuario'
         // $usuario->setRol('empleado'); // Por ejemplo, aquí establecemos el rol como 'usuario'
         // $usuario->setRol('administrador'); // Por ejemplo, aquí establecemos el rol como 'usuario'
 

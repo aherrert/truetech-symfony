@@ -51,46 +51,45 @@ class Usuario
     private $password = 'NULL';
 
     /**
-     * @var int
+     * @var string|null
      *
-     * @ORM\Column(name="id_cargo", type="integer", nullable=false)
+     * @ORM\Column(name="rol", type="string", length=255, nullable=true, options={"default"="NULL"})
      */
-    private $idCargo;
+    private $rol;
 
-    // Getters
+    /**
+     * Set the value of rol
+     *
+     * @param string|null $rol
+     * @return self
+     */
 
+    /**
+     * Get the value of id
+     *
+     * @return int|null
+     */
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getNombre(): ?string
+    /**
+     * Get the value of rol
+     *
+     * @return string|null
+     */
+    public function getRol(): ?string
     {
-        return $this->nombre;
+        return $this->rol;
     }
-
-    public function getApellidos(): ?string
-    {
-        return $this->apellidos;
-    }
-
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    public function getPassword(): ?string
-    {
-        return $this->password;
-    }
-
-    public function getIdCargo(): ?int
-    {
-        return $this->idCargo;
-    }
-
-    // Setters
-
+    
+    /**
+     * Set the value of nombre
+     *
+     * @param string|null $nombre
+     * @return self
+     */
     public function setNombre(?string $nombre): self
     {
         $this->nombre = $nombre;
@@ -98,6 +97,12 @@ class Usuario
         return $this;
     }
 
+    /**
+     * Set the value of apellidos
+     *
+     * @param string|null $apellidos
+     * @return self
+     */
     public function setApellidos(?string $apellidos): self
     {
         $this->apellidos = $apellidos;
@@ -105,6 +110,12 @@ class Usuario
         return $this;
     }
 
+    /**
+     * Set the value of email
+     *
+     * @param string|null $email
+     * @return self
+     */
     public function setEmail(?string $email): self
     {
         $this->email = $email;
@@ -112,6 +123,12 @@ class Usuario
         return $this;
     }
 
+    /**
+     * Set the value of password
+     *
+     * @param string|null $password
+     * @return self
+     */
     public function setPassword(?string $password): self
     {
         $this->password = $password;
@@ -119,10 +136,19 @@ class Usuario
         return $this;
     }
 
-    public function setIdCargo(int $idCargo): self
+    public function setRol(?string $rol): self
     {
-        $this->idCargo = $idCargo;
+        $this->rol = $rol;
 
         return $this;
+    }
+     /**
+     * Get the value of email
+     *
+     * @return string|null
+     */
+    public function getEmail(): ?string
+    {
+        return $this->email;
     }
 }
