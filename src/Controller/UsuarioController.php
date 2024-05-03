@@ -9,7 +9,8 @@ use Symfony\Component\Routing\Annotation\Route;
 use App\Entity\Usuario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
-use App\Repository\UsuarioRepository; // Importa el repositorio de la entidad Usuario
+use App\Repository\UsuarioRepository;
+use Firebase\JWT\JWT;
 
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
@@ -68,45 +69,67 @@ class UsuarioController extends AbstractController
     }
 
 
-    /*LOGIN USUARIO*/
     /**
      * @Route("/login", name="login_usuario")
      */
     public function login(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
         // Verificar si los datos esperados están presentes en el arreglo $data
         if (!isset($data['email']) || !isset($data['password'])) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
         }
+
         // Buscar el usuario por su correo electrónico en el repositorio
         $usuario = $this->usuarioRepository->findOneBy(['email' => $data['email']]);
         if (!$usuario) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Correo electrónico no encontrado'], JsonResponse::HTTP_NOT_FOUND);
         }
+
         // Verificar la contraseña sin cifrar
         if ($usuario->getPassword() !== $data['password']) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Contraseña incorrecta'], JsonResponse::HTTP_UNAUTHORIZED);
         }
+
         // Obtener el nombre del usuario y su rol
         $nombreUsuario = $usuario->getNombre();
-        $rol = $usuario->getRol();
+        $rol = $usuario->getIdCargo();
+
+        // Crear el payload del token
+        $payload = [
+            'email' => $usuario->getEmail(),
+            'nombre' => $nombreUsuario,
+            'apellidos' => $usuario->getApellidos(),
+            'rol' => $rol,
+            'exp' => time() + 3600 // El token expira en una hora (puedes ajustar este valor según tu necesidad)
+        ];
+
+        // Firmar el token JWT
+        $token = JWT::encode($payload, 'tu_clave_secreta', 'HS256');
+
         // Mensaje de bienvenida según el rol con el nombre del usuario
         $mensajeBienvenida = '';
         switch ($rol) {
-            case 'usuario':
-                $mensajeBienvenida = '¡Bienvenido/a ' . $nombreUsuario . ', como usuario';
+            case '4':
+                $mensajeBienvenida = '¡Bienvenido/a ' . $nombreUsuario . ', como usuario!';
                 break;
-            case 'empleado':
-                $mensajeBienvenida = '¡Hola ' . $nombreUsuario . ', bienvenido/a como empleado!';
+            case '3':
+                $mensajeBienvenida = '¡Hola ' . $nombreUsuario . ', bienvenido/a como empleado hardware!';
                 break;
-            case 'administrador':
+            case '2':
+                $mensajeBienvenida = '¡Saludos ' . $nombreUsuario . ', bienvenido/a como empleado software!';
+                break;
+            case '1':
                 $mensajeBienvenida = '¡Saludos ' . $nombreUsuario . ', bienvenido/a como administrador!';
                 break;
             default:
                 $mensajeBienvenida = '¡Hola ' . $nombreUsuario . ', bienvenido/a!';
                 break;
         }
-        return $this->json(['status' => 'OK', 'message' => $mensajeBienvenida], JsonResponse::HTTP_OK);
+
+        // Devolver el token en la respuesta
+        return new JsonResponse(['status' => 'OK', 'token' => $token, 'message' => $mensajeBienvenida], JsonResponse::HTTP_OK);
     }
 
     /*EDITAR USUARIO*/

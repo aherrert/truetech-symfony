@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Incidencia
  *
- * @ORM\Table(name="incidencia", uniqueConstraints={@ORM\UniqueConstraint(name="email", columns={"email"})}, indexes={@ORM\Index(name="empleado_id", columns={"empleado_id"})})
+ * @ORM\Table(name="incidencia", indexes={@ORM\Index(name="empleado_id", columns={"empleado_id"})})
  * @ORM\Entity
  */
 class Incidencia
@@ -22,13 +22,6 @@ class Incidencia
      * @ORM\GeneratedValue(strategy="IDENTITY")
      */
     private $id;
-
-    /**
-     * @var string|null
-     *
-     * @ORM\Column(name="nombre_completo", type="string", length=255, nullable=true, options={"default"="NULL"})
-     */
-    private $nombreCompleto = 'NULL';
 
     /**
      * @var string|null
@@ -54,9 +47,9 @@ class Incidencia
     /**
      * @var string|null
      *
-     * @ORM\Column(name="email", type="string", length=255, nullable=true)
+     * @ORM\Column(name="imagen", type="string", length=255, nullable=true)
      */
-    private $email;
+    private $imagen;
 
     /**
      * @var \Usuario
@@ -66,7 +59,14 @@ class Incidencia
      *   @ORM\JoinColumn(name="empleado_id", referencedColumnName="id")
      * })
      */
-    private $empleado;
+    private $empleado;/**
+    * @var int|null
+    *
+    * @ORM\Column(name="cliente_id", type="integer", nullable=true)
+    */
+   private $clienteId;
+
+
 
     // Getters
 
@@ -75,10 +75,6 @@ class Incidencia
         return $this->id;
     }
 
-    public function getNombreCompleto(): ?string
-    {
-        return $this->nombreCompleto;
-    }
 
     public function getAsuntoReparacion(): ?string
     {
@@ -95,19 +91,17 @@ class Incidencia
         return $this->estado;
     }
 
-    public function getEmail(): ?string
+    public function getImagen(): ?string
     {
-        return $this->email;
+        return $this->imagen;
     }
-    
+
+    public function getClienteId(): ?int
+    {
+        return $this->clienteId;
+    }
+
     // Setters
-
-    public function setNombreCompleto(?string $nombreCompleto): self
-    {
-        $this->nombreCompleto = $nombreCompleto;
-
-        return $this;
-    }
 
     public function setAsuntoReparacion(?string $asuntoReparacion): self
     {
@@ -130,12 +124,11 @@ class Incidencia
         return $this;
     }
 
-    public function setEmail(?Usuario $email): self
+    public function setImagen(?string $imagen): self
     {
-        $this->email = $email;
-    
+        $this->imagen = $imagen;
         return $this;
-    }  
+    }
 
     public function setEmpleado(?Usuario $empleado): self
     {
@@ -143,5 +136,10 @@ class Incidencia
 
         return $this;
     }
-
+    public function setClienteId(?int $clienteId): self
+    {
+        $this->clienteId = $clienteId;
+    
+        return $this;
+    }
 }
