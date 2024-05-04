@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Entity\Usuario;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use App\Repository\UsuarioRepository;
 use Firebase\JWT\JWT;
 
@@ -102,7 +102,7 @@ class UsuarioController extends AbstractController
             'nombre' => $nombreUsuario,
             'apellidos' => $usuario->getApellidos(),
             'rol' => $rol,
-            'exp' => time() + 3600 // El token expira en una hora (puedes ajustar este valor según tu necesidad)
+            'exp' => time() + 180 // 3600 El token expira en una hora (puedes ajustar este valor según tu necesidad)
         ];
 
         // Firmar el token JWT
@@ -132,40 +132,91 @@ class UsuarioController extends AbstractController
         return new JsonResponse(['status' => 'OK', 'token' => $token, 'message' => $mensajeBienvenida], JsonResponse::HTTP_OK);
     }
 
-    /*EDITAR USUARIO*/
     /**
      * @Route("/editarPerfil", name="editarPerfil")
      */
     public function editarPerfil(Request $request, ValidatorInterface $validator): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
         // Verificar si los datos esperados están presentes en el arreglo $data
-        if (!isset($data['email']) || !isset($data['nombre']) || !isset($data['apellidos']) || !isset($data['password'])) {
+        if (!isset($data['email']) || !isset($data['nombre']) || !isset($data['apellidos']) || !isset($data['password']) || !isset($data['token'])) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
         }
+
+        // Verificar la validez del token JWT enviado por el cliente
+        $token = $data['token'];
+
+        try {
+            // Decodificar el token JWT
+            $decodedToken = $this->decodeJwtToken($token);
+
+            // Verificar si el token contiene la información necesaria (por ejemplo, el correo electrónico)
+            if (!isset($decodedToken['email'])) {
+                throw new AccessDeniedException('Token inválido: falta información del usuario');
+            }
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
         // Obtener el usuario por su correo electrónico
         $usuario = $this->entityManager->getRepository(Usuario::class)->findOneBy(['email' => $data['email']]);
+
         // Verificar si el usuario existe
         if (!$usuario) {
-            return $this->json(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
+            return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
         }
+
         // No permitir la modificación del correo electrónico
         if ($data['email'] !== $usuario->getEmail()) {
-            return $this->json(['status' => 'KO', 'message' => 'No está permitido modificar el correo electrónico'], JsonResponse::HTTP_BAD_REQUEST);
+            return new JsonResponse(['status' => 'KO', 'message' => 'No está permitido modificar el correo electrónico'], JsonResponse::HTTP_BAD_REQUEST);
         }
+
         $usuario->setNombre($data['nombre']);
         $usuario->setApellidos($data['apellidos']);
         $usuario->setPassword($data['password']);
+
         // Validar el usuario utilizando el validador
         $errors = $validator->validate($usuario);
+
         if (count($errors) > 0) {
             // Construir un arreglo con los mensajes de error
             $errorMessages = [];
             foreach ($errors as $error) {
                 $errorMessages[] = $error->getMessage();
             }
-            return $this->json(['status' => 'KO', 'message' => 'Los datos ingresados no son válidos'], JsonResponse::HTTP_BAD_REQUEST);
+            return new JsonResponse(['status' => 'KO', 'message' => 'Los datos ingresados no son válidos'], JsonResponse::HTTP_BAD_REQUEST);
         }
+
         $this->entityManager->flush();
-        return $this->json(['status' => 'OK', 'message' => 'Perfil actualizado correctamente'], JsonResponse::HTTP_OK);
+
+        return new JsonResponse(['status' => 'OK', 'message' => 'Perfil actualizado correctamente'], JsonResponse::HTTP_OK);
+    }
+
+    private function decodeJwtToken(string $token)
+    {
+        // Dividir el token en partes separadas
+        $tokenParts = explode('.', $token);
+
+        // Verificar si el token tiene tres partes
+        if (count($tokenParts) !== 3) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Decodificar la segunda parte (payload) del token
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+
+        // Verificar si se pudo decodificar el payload
+        if (!$payload) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Verificar si el token ha expirado
+        if (isset($payload['exp']) && $payload['exp'] < time()) {
+            throw new AccessDeniedException('Token expirado');
+        }
+
+        // Devolver el payload decodificado
+        return $payload;
     }
 }
