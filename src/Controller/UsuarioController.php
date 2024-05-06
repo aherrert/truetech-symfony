@@ -42,6 +42,13 @@ class UsuarioController extends AbstractController
         // Verificar si los datos esperados están presentes en el arreglo $data
         if (!isset($data['nombre']) || !isset($data['apellidos']) || !isset($data['email']) || !isset($data['password'])) {
         }
+
+        // Verificar si el correo electrónico ya está en uso
+        $existingUser = $this->usuarioRepository->findOneByEmail($data['email']);
+        if ($existingUser) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'El correo electrónico ya está en uso'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
         $usuario->setNombre($data['nombre']);
         $usuario->setApellidos($data['apellidos']);
         $usuario->setEmail($data['email']);
@@ -102,7 +109,7 @@ class UsuarioController extends AbstractController
             'nombre' => $nombreUsuario,
             'apellidos' => $usuario->getApellidos(),
             'rol' => $rol,
-            'exp' => time() + 180 // 3600 El token expira en una hora (puedes ajustar este valor según tu necesidad)
+            'exp' => time() + 3600 // 3600 El token expira en una hora (puedes ajustar este valor según tu necesidad)
         ];
 
         // Firmar el token JWT

@@ -21,6 +21,18 @@ registro_usuario:
   path: /usuario/registro
   controller: App\Controller\UsuarioController::registro
 
+registro_admin:
+  path: /usuario/registro_admin
+  controller: App\Controller\AdminController::registro_admin
+  
+admin_vista:
+  path: /usuario/tabla_Admin
+  controller: App\Controller\AdminController::obtenerUsuariosAdmin
+
+eliminar_usuario:
+  path: /usuario/borrar
+  controller: App\Controller\AdminController::eliminarUsuario
+
 login_usuario:
   path: /usuario/login
   controller: App\Controller\UsuarioController::login
