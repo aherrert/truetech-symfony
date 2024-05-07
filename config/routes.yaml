@@ -45,6 +45,10 @@ nueva_incidencia:
   path: /incidencia/registrar
   controller: App\Controller\IncidenciaController::nuevaIncidencia
   
+listar_incidencia_cliente:
+  path: /incidencia/ver-cliente
+  controller: App\Controller\IncidenciaController::listarIncidenciasUsuario
+  
 ver_incidencia:
   path: /incidencias/ver
   controller: App\Controller\IncidenciaController:ver_incidencias_usuario_cargo_2

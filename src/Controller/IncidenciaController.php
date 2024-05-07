@@ -12,6 +12,8 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use Symfony\Component\Filesystem\Filesystem;
+
 
 
 class IncidenciaController extends AbstractController
@@ -28,27 +30,55 @@ class IncidenciaController extends AbstractController
      */
     public function nuevaIncidencia(Request $request, ValidatorInterface $validator): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
+        // Obtener los datos del formulario
+        $data = $request->request->all(); // Aquí se encuentran los datos del formulario
 
         // Verificar si falta algún dato obligatorio
-        if (!isset($data['asunto_reparacion']) || !isset($data['mensaje_reparacion']) || !isset($data['email']) || !isset($data['id_empleado'])) {
+        if (!isset($data['asunto_reparacion']) || !isset($data['mensaje_reparacion']) || !isset($data['email']) || !isset($data['id_cargo']) || !isset($data['token'])) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Faltan datos en la solicitud'], JsonResponse::HTTP_BAD_REQUEST);
         }
+        $idCargo = $data['id_cargo']; // Asegúrate de que estás accediendo correctamente al id_cargo
 
-        // Verificar si el correo electrónico ya existe en la base de datos de usuario
-        $usuarioExistente = $this->entityManager->getRepository(Usuario::class)->findOneBy(['email' => $data['email']]);
-        if ($usuarioExistente === null) {
-            return new JsonResponse(['status' => 'KO', 'message' => 'El correo electrónico no está registrado en la base de datos de usuario'], JsonResponse::HTTP_BAD_REQUEST);
+        // Obtener los usuarios con el id de cargo correspondiente
+        $usuariosCargo = $this->entityManager->getRepository(Usuario::class)->findBy(['idCargo' => $idCargo]);
+
+        if (empty($usuariosCargo)) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se encontraron usuarios con el cargo correspondiente'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        // Obtener el usuario con el id de cargo 2 o 3
-        $usuarioCargo = $this->entityManager->getRepository(Usuario::class)->findOneBy(['id' => $data['id_empleado']]);
-        if ($usuarioCargo === null || !in_array($usuarioCargo->getIdCargo(), [2, 3])) {
-            return new JsonResponse(['status' => 'KO', 'message' => 'El empleado no tiene el cargo requerido'], JsonResponse::HTTP_BAD_REQUEST);
+        // Verificar la validez del token JWT enviado por el cliente
+        $token = $data['token'];
+
+        try {
+            // Decodificar el token JWT y verificar el correo electrónico
+            $decodedToken = $this->decodeJwtToken1($token, $data['email']);
+            $userId = $decodedToken['id']; // Obtener el ID del usuario
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
         }
+
+        // Crear el directorio del usuario si no existe
+        $filesystem = new Filesystem();
+        $directoryPath = $this->getParameter('ruta_directorio_carga_imagenes') . '/' . 'id_cliente_' . $userId;
+        if (!$filesystem->exists($directoryPath)) {
+            $filesystem->mkdir($directoryPath);
+        }
+
+        // Seleccionar el usuario siguiente en la lista de usuarios con el cargo correspondiente
+        $index = 0;
+        $numUsuarios = count($usuariosCargo);
+        foreach ($usuariosCargo as $index => $usuario) {
+            if ($usuario->getId() !== $userId) {
+                break;
+            }
+        }
+        $index = ($index + 1) % $numUsuarios; // Avanzar al siguiente usuario
+        $usuarioCargo = $usuariosCargo[$index];
 
         // Verificar si ya existe una incidencia activa asociada al cliente por su ID
-        $incidenciaActiva = $this->entityManager->getRepository(Incidencia::class)->findOneBy(['clienteId' => $usuarioExistente->getId(), 'estado' => 'activo']);
+        $incidenciaActiva = $this->entityManager->getRepository(Incidencia::class)->findOneBy(['clienteId' => $userId, 'estado' => 'activo']);
         if ($incidenciaActiva !== null) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Ya tienes una incidencia activa. No puedes abrir una nueva'], JsonResponse::HTTP_BAD_REQUEST);
         }
@@ -56,7 +86,7 @@ class IncidenciaController extends AbstractController
         // Crear una nueva incidencia
         $incidencia = new Incidencia();
 
-        // Establecer el estado de la incidencia como activa por defecto 
+        // Establecer el estado de la incidencia como activa por defecto
         $estado = $data['estado'] ?? 'activo';
         $incidencia->setEstado($estado);
 
@@ -64,33 +94,45 @@ class IncidenciaController extends AbstractController
         $incidencia->setAsuntoReparacion($data['asunto_reparacion']);
         $incidencia->setMensajeReparacion($data['mensaje_reparacion']);
 
+        // Asignar el usuario correspondiente a la incidencia
+        $incidencia->setEmpleado($usuarioCargo);
+        $incidencia->setClienteId($userId);
+
         // Verificar si la imagen está presente en la solicitud
         if ($request->files->has('imagen')) {
             $imagen = $request->files->get('imagen');
             // Verificar si la imagen tiene un formato admitido
             $formatoImagen = $imagen->guessExtension();
-            if (!in_array($formatoImagen, ['jpg', 'jpeg', 'png'])) {
-                return new JsonResponse(['status' => 'KO', 'message' => 'Formato de imagen no admitido. Los formatos admitidos son JPEG, JPG y PNG.'], JsonResponse::HTTP_BAD_REQUEST);
+            $allowedFormats = ['jpg', 'jpeg', 'png', 'gif'];
+            if (!in_array($formatoImagen, $allowedFormats)) {
+                return new JsonResponse(['status' => 'KO', 'message' => 'Formato de imagen no admitido. Los formatos admitidos son JPEG, JPG, PNG y GIF.'], JsonResponse::HTTP_BAD_REQUEST);
             }
-            // Guardar la imagen en el directorio de carga
-            $nombreImagen = 'incidencia_' . $incidencia->getId() . '.' . $formatoImagen;
+
+            // Verificar si el archivo ya existe
+            $nombreImagen = pathinfo($imagen->getClientOriginalName(), PATHINFO_FILENAME);
+            $nombreImagen .= '_' . uniqid() . '.' . $formatoImagen;
+            $rutaGuardadoImagen = $directoryPath . '/' . $nombreImagen; // Guardar la imagen dentro del directorio del usuario
+            if (file_exists($rutaGuardadoImagen)) {
+                return new JsonResponse(['status' => 'KO', 'message' => 'El archivo ya existe.'], JsonResponse::HTTP_BAD_REQUEST);
+            }
+
+            // Verificar el tamaño del archivo
+            $maxFileSize = 500000; // 500 KB
+            if ($imagen->getSize() > $maxFileSize) {
+                return new JsonResponse(['status' => 'KO', 'message' => 'El archivo es demasiado grande. El tamaño máximo permitido es de 500 KB.'], JsonResponse::HTTP_BAD_REQUEST);
+            }
+
+            // Mover la imagen al directorio deseado
             try {
-                $imagen->move($this->getParameter('ruta_directorio_carga_imagenes'), $nombreImagen);
+                $imagen->move($directoryPath, $nombreImagen);
             } catch (FileException $e) {
                 return new JsonResponse(['status' => 'KO', 'message' => 'Error al cargar la imagen'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
             }
             // Almacenar la ruta de la imagen en la entidad de incidencia
-            $rutaImagen = $this->getParameter('ruta_directorio_carga_imagenes') . '/' . $nombreImagen;
-            $incidencia->setImagen($rutaImagen);
+            $incidencia->setImagen($rutaGuardadoImagen);
         } else {
             return new JsonResponse(['status' => 'KO', 'message' => 'La imagen no se ha proporcionado'], JsonResponse::HTTP_BAD_REQUEST);
         }
-
-        // Asignar el usuario con el cargo 2 o 3 a la incidencia
-        $incidencia->setEmpleado($usuarioCargo);
-
-        // Asignar el ID del usuario existente a la incidencia
-        $incidencia->setClienteId($usuarioExistente->getId());
 
         // Validar la incidencia utilizando el validador
         $errors = $validator->validate($incidencia);
@@ -104,11 +146,78 @@ class IncidenciaController extends AbstractController
         }
 
         // Persistir la incidencia en la base de datos
-        $this->entityManager->persist($incidencia);
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->persist($incidencia);
+            $this->entityManager->flush();
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error al persistir la incidencia'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
         return new JsonResponse(['status' => 'OK', 'message' => 'Incidencia creada correctamente'], JsonResponse::HTTP_CREATED);
     }
+
+
+    /**
+     * @Route("/incidencias/usuario", name="listar_incidencias_usuario", methods={"POST"})
+     */
+    public function listarIncidenciasUsuario(Request $request, ValidatorInterface $validator): JsonResponse
+    {
+        // Obtener el token del encabezado de la solicitud
+        $token = $request->headers->get('Authorization');
+
+        // Verificar si se proporcionó el token
+        if (!$token) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se proporcionó el token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Separar el token del prefijo "Bearer"
+        $token = str_replace('Bearer ', '', $token);
+
+        // Verificar la validez del token JWT enviado por el cliente
+        try {
+            // Decodificar el token JWT y obtener el ID del usuario
+            $decodedToken = $this->decodeJwtToken2($token);
+            $userId = $decodedToken['id'];
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Obtener las incidencias asociadas al cliente_id (que es el userId en este caso)
+        $incidencias = $this->entityManager->getRepository(Incidencia::class)->findBy(['clienteId' => $userId]);
+
+        // Verificar si se encontraron incidencias
+        if (empty($incidencias)) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se encontraron incidencias asociadas al cliente_id proporcionado'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // Convertir las incidencias a un arreglo para la respuesta JSON
+        $incidenciasArray = [];
+        foreach ($incidencias as $incidencia) {
+            // Construir la ruta relativa para la imagen
+
+            $incidenciasArray[] = [
+                'id' => $incidencia->getId(),
+                'asunto_reparacion' => $incidencia->getAsuntoReparacion(),
+                'mensaje_reparacion' => $incidencia->getMensajeReparacion(),
+                'estado' => $incidencia->getEstado(),
+                'imagen' => $incidencia->getImagen(),
+                // Agrega más campos si es necesario
+            ];
+        }
+
+        return new JsonResponse(['status' => 'OK', 'incidencias' => $incidenciasArray], JsonResponse::HTTP_OK);
+    }
+
+
+
+
+
+
+
+
+
 
 
     /**
@@ -140,7 +249,7 @@ class IncidenciaController extends AbstractController
 
         return new JsonResponse(['status' => 'OK', 'incidencias' => $incidenciasArray], JsonResponse::HTTP_OK);
     }
-    
+
     /**
      * @Route("/actualizarTicket", name="actualizar_ticket", methods={"POST"})
      */
@@ -181,5 +290,79 @@ class IncidenciaController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['status' => 'OK', 'message' => 'Estado del ticket actualizado correctamente'], JsonResponse::HTTP_OK);
+    }
+    private function decodeJwtToken1(string $token, string $email)
+    {
+        // Dividir el token en partes separadas
+        $tokenParts = explode('.', $token);
+
+        // Verificar si el token tiene tres partes
+        if (count($tokenParts) !== 3) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Decodificar la segunda parte (payload) del token
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+
+        // Verificar si se pudo decodificar el payload
+        if (!$payload) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Verificar si el token ha expirado
+        if (isset($payload['exp']) && $payload['exp'] < time()) {
+            throw new AccessDeniedException('Token expirado');
+        }
+
+        // Verificar si el correo electrónico coincide
+        if (isset($payload['email']) && $payload['email'] !== $email) {
+            throw new AccessDeniedException('El correo electrónico del token no coincide con el proporcionado');
+        }
+
+        // Verificar si se incluye el ID del usuario en el payload
+        if (!isset($payload['id'])) {
+            throw new AccessDeniedException('ID de usuario no encontrado en el token');
+        }
+
+        // Devolver el payload decodificado junto con el ID del usuario
+        return [
+            'id' => $payload['id'],
+            'payload' => $payload
+        ];
+    }
+    private function decodeJwtToken2(string $token)
+    {
+        // Dividir el token en partes separadas
+        $tokenParts = explode('.', $token);
+
+        // Verificar si el token tiene tres partes
+        if (count($tokenParts) !== 3) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Decodificar la segunda parte (payload) del token
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+
+        // Verificar si se pudo decodificar el payload
+        if (!$payload) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Verificar si el token ha expirado
+        if (isset($payload['exp']) && $payload['exp'] < time()) {
+            throw new AccessDeniedException('Token expirado');
+        }
+
+
+        // Verificar si se incluye el ID del usuario en el payload
+        if (!isset($payload['id'])) {
+            throw new AccessDeniedException('ID de usuario no encontrado en el token');
+        }
+
+        // Devolver el payload decodificado junto con el ID del usuario
+        return [
+            'id' => $payload['id'],
+            'payload' => $payload
+        ];
     }
 }
