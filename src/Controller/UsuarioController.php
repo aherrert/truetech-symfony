@@ -105,6 +105,7 @@ class UsuarioController extends AbstractController
 
         // Crear el payload del token
         $payload = [
+            'id' => $usuario->getId(),
             'email' => $usuario->getEmail(),
             'nombre' => $nombreUsuario,
             'apellidos' => $usuario->getApellidos(),
@@ -154,14 +155,12 @@ class UsuarioController extends AbstractController
         // Verificar la validez del token JWT enviado por el cliente
         $token = $data['token'];
 
-        try {
-            // Decodificar el token JWT
-            $decodedToken = $this->decodeJwtToken($token);
+        // Verificar la validez del token JWT enviado por el cliente
+        $token = $data['token'];
 
-            // Verificar si el token contiene la información necesaria (por ejemplo, el correo electrónico)
-            if (!isset($decodedToken['email'])) {
-                throw new AccessDeniedException('Token inválido: falta información del usuario');
-            }
+        try {
+            // Decodificar el token JWT y verificar el correo electrónico
+            $decodedToken = $this->decodeJwtToken($token, $data['email']);
         } catch (AccessDeniedException $e) {
             return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
         }
@@ -172,11 +171,6 @@ class UsuarioController extends AbstractController
         // Verificar si el usuario existe
         if (!$usuario) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
-        }
-
-        // No permitir la modificación del correo electrónico
-        if ($data['email'] !== $usuario->getEmail()) {
-            return new JsonResponse(['status' => 'KO', 'message' => 'No está permitido modificar el correo electrónico'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
         $usuario->setNombre($data['nombre']);
@@ -192,7 +186,7 @@ class UsuarioController extends AbstractController
             foreach ($errors as $error) {
                 $errorMessages[] = $error->getMessage();
             }
-            return new JsonResponse(['status' => 'KO', 'message' => 'Los datos ingresados no son válidos'], JsonResponse::HTTP_BAD_REQUEST);
+            return new JsonResponse(['status' => 'KO', 'message' => 'Los datos ingresados no son válidos', 'errors' => $errorMessages], JsonResponse::HTTP_BAD_REQUEST);
         }
 
         $this->entityManager->flush();
@@ -200,7 +194,7 @@ class UsuarioController extends AbstractController
         return new JsonResponse(['status' => 'OK', 'message' => 'Perfil actualizado correctamente'], JsonResponse::HTTP_OK);
     }
 
-    private function decodeJwtToken(string $token)
+    private function decodeJwtToken(string $token, string $email)
     {
         // Dividir el token en partes separadas
         $tokenParts = explode('.', $token);
@@ -221,6 +215,11 @@ class UsuarioController extends AbstractController
         // Verificar si el token ha expirado
         if (isset($payload['exp']) && $payload['exp'] < time()) {
             throw new AccessDeniedException('Token expirado');
+        }
+
+        // Verificar si el correo electrónico coincide
+        if (isset($payload['email']) && $payload['email'] !== $email) {
+            throw new AccessDeniedException('El correo electrónico del token no coincide con el proporcionado');
         }
 
         // Devolver el payload decodificado
