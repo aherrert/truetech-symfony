@@ -55,15 +55,13 @@ actualizar_incidencia2:
 incidencia_historico:
   path: /incidencias/historico
   controller: App\Controller\IncidenciaController::listarHistorialIncidencias
+ 
+actualizar_contrasenya:
+  path: /usuario/resetpassword
+  controller: App\Controller\UsuarioController::resetpassword
 
+enviar_correo:
+  path: /usuario/enviarcorreo
+  controller: App\Controller\UsuarioController::enviarcorreo
 
-# actualizar_incidencia:
-#   path: /incidencia/actualizar
-#   controller: App\Controller\IncidenciaController::actualizarTicket
-
-# cliente:
-#     resource: App\Controller\ClienteController
-#     type: annotation
-
-# routes.yaml
 
