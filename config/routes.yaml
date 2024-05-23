@@ -56,7 +56,14 @@ ver_incidencia:
 actualizar_incidencia:
   path: /incidencia/actualizar
   controller: App\Controller\IncidenciaController::actualizarTicket
+  
+actualizar_contrasenya:
+  path: /usuario/resetpassword
+  controller: App\Controller\UsuarioController::resetpassword
 
+enviar_correo:
+  path: /usuario/enviarcorreo
+  controller: App\Controller\UsuarioController::enviarcorreo
 # cliente:
 #     resource: App\Controller\ClienteController
 #     type: annotation

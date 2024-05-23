@@ -14,6 +14,24 @@ use Firebase\JWT\JWT;
 
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+
+
+use Symfony\Component\Mailer\MailerInterface;
+
+
+// require_once './vendor/autoload.php';
+
+use Symfony\Config\Framework\MailerConfig;
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+// require_once './vendor/autoload.php';
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use Symfony\Component\Mailer\Transport;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mime\Email;
 class UsuarioController extends AbstractController
 {
     private $entityManager;
@@ -224,5 +242,130 @@ class UsuarioController extends AbstractController
 
         // Devolver el payload decodificado
         return $payload;
+    }
+    /**
+     * @Route("/resetpassword", name="actualizar_contrasenya")
+     */
+    public function resetpassword(Request $request, ValidatorInterface $validator): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        // Verificar si los datos esperados están presentes en el arreglo $data
+        if (!isset($data['email']) || !isset($data['password'])) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Obtener el usuario por su correo electrónico
+        $usuario = $this->entityManager->getRepository(Usuario::class)->findOneBy(['email' => $data['email']]);
+
+        // Verificar si el usuario existe
+        if (!$usuario) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // Permitir la modificación de la contra
+        
+        $usuario->setPassword($data['password']);
+
+        // Validar el usuario utilizando el validador
+        $errors = $validator->validate($usuario);
+
+        if (count($errors) > 0) {
+            // Construir un arreglo con los mensajes de error
+            $errorMessages = [];
+            foreach ($errors as $error) {
+                $errorMessages[] = $error->getMessage();
+            }
+            return new JsonResponse(['status' => 'KO', 'message' => 'Los datos ingresados no son válidos'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $this->entityManager->flush();
+
+        return new JsonResponse(['status' => 'OK', 'message' => 'Perfil actualizado correctamente'], JsonResponse::HTTP_OK);
+    }
+
+    /**
+     * @Route("/enviarcorreo", name="enviar_correo")
+     */
+    public function enviarcorreo(Request $request, ValidatorInterface $validator, MailerInterface $mailer): JsonResponse
+    {
+        
+        $data = json_decode($request->getContent(), true);
+
+        // Verificar si los datos esperados están presentes en el arreglo $data
+        if (!isset($data['email'])) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Obtener el usuario por su correo electrónico
+        $usuario = $this->entityManager->getRepository(Usuario::class)->findOneBy(['email' => $data['email']]);
+
+        // Verificar si el usuario existe
+        if (!$usuario) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
+            
+        }
+
+
+        // Validar el usuario utilizando el validador
+        $errors = $validator->validate($usuario);
+        
+        if (count($errors) > 0) {
+            // Construir un arreglo con los mensajes de error
+            $errorMessages = [];
+            foreach ($errors as $error) {
+                $errorMessages[] = $error->getMessage();
+            }
+            return new JsonResponse(['status' => 'KO', 'message' => 'Los datos ingresados no son válidos'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+        // creant un objecte Transporte
+        $transport = Transport::fromDsn('smtp://truetrech.s.a@gmail.com:prnkijuhefdtmfku@smtp.gmail.com:587');
+        
+        // creant un objecte Mailer
+        $mailer = new Mailer($transport);
+        
+        // creant un objecte Email
+        $email = (new Email());
+
+        // establiu l'adreça "des de"
+        $email->from('truetrech.s.a@gmail.com');
+
+        //establir "a l'adreça"
+        $email->to($usuario->getEmail());
+        
+        // establir un "assumpte"
+        $email->subject('Cambiar Contraseña TRUETECH');
+
+        // establiu el "cos" de text sense format
+        $email->text(
+            'Este enlace sirve para cambiar la contraseña de nuestra página web: '.
+            ' http://localhost:4200/resetpassword');
+        
+        // Envia un correu electrònic
+        $mailer->send($email);
+        
+        // // $destino="truetrech.s.a@gmail.com";
+        // //$contenido="hola:";
+        // // mail($usuario,"contacto",$contenido);
+        // // mail($usuario->getEmail(),"contacto",$contenido);
+        // // header("");
+        // // configuracion con JOSE PORTUGAL
+        //     // $email = (new Email());
+        //     // $email->to($usuario->getEmail());
+        //     // $email->replyTo('mailtrap@truetech.com');
+        //     // $mailer->send($email);
+        // //CONFIGURACIO CON ADRIA NIVI
+            
+
+        //     $to = $usuario->getEmail();
+        //     $subject = "la teva contrasenya";
+        //     $from="truetrech.s.a@gmail.com";
+        //     mail($to , $subject , $from);
+
+
+
+        return new JsonResponse(['status' => 'OK', 'message' => 'Perfil actualizado correctamente'], JsonResponse::HTTP_OK);
+        
+        
     }
 }
