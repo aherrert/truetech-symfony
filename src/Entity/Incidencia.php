@@ -5,7 +5,8 @@ use App\Entity\Usuario;
 
 
 use Doctrine\ORM\Mapping as ORM;
-
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 /**
  * Incidencia
  *
@@ -66,6 +67,15 @@ class Incidencia
     */
    private $clienteId;
 
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\IncidenciaHistorial", mappedBy="incidencia", cascade={"persist", "remove"})
+     */
+    private $historial;
+
+    public function __construct()
+    {
+        $this->historial = new ArrayCollection();
+    }
 
 
     // Getters
@@ -140,6 +150,33 @@ class Incidencia
     {
         $this->clienteId = $clienteId;
     
+        return $this;
+    }
+
+    public function getHistorial(): Collection
+    {
+        return $this->historial;
+    }
+
+    public function addHistorial(IncidenciaHistorial $historial): self
+    {
+        if (!$this->historial->contains($historial)) {
+            $this->historial[] = $historial;
+            $historial->setIncidencia($this);
+        }
+
+        return $this;
+    }
+
+    public function removeHistorial(IncidenciaHistorial $historial): self
+    {
+        if ($this->historial->removeElement($historial)) {
+            // set the owning side to null (unless already changed)
+            if ($historial->getIncidencia() === $this) {
+                $historial->setIncidencia(null);
+            }
+        }
+
         return $this;
     }
 }

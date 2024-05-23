@@ -3,19 +3,6 @@ controllers:
   type: attribute
 # config/routes.yaml
 
-cliente_listar:
-  path: /clientes/listar
-  controller: App\Controller\ClienteController::listarClientes
-
-# clienteid_listar:
-#     controller: App\Controller\ClienteController::listarClientesId
-
-departamento_listar:
-  path: /departamentos/listar
-  controller: App\Controller\DepartamentosController::listarDepartamentos
-departamentoid_listar:
-  path: /departamentos/listar/{id}
-  controller: App\Controller\DepartamentosController::listarDepartamentosId
 
 registro_usuario:
   path: /usuario/registro
@@ -48,15 +35,27 @@ nueva_incidencia:
 listar_incidencia_cliente:
   path: /incidencia/ver-cliente
   controller: App\Controller\IncidenciaController::listarIncidenciasUsuario
-  
-ver_incidencia:
-  path: /incidencias/ver
-  controller: App\Controller\IncidenciaController:ver_incidencias_usuario_cargo_2
+
+listar_incidencia_trabajador:
+  path: /incidencia/ver-trabajador
+  controller: App\Controller\IncidenciaController::listarIncidenciasEmpleado
+
+listar_incidencia_trabajador2:
+  path: /incidencia/ver-trabajador2
+  controller: App\Controller\IncidenciaController::listarIncidenciasEmpleado2
 
 actualizar_incidencia:
   path: /incidencia/actualizar
-  controller: App\Controller\IncidenciaController::actualizarTicket
+  controller: App\Controller\IncidenciaController::actualizarIncidencia
+
+actualizar_incidencia2:
+  path: /incidencia/actualizar2
+  controller: App\Controller\IncidenciaController::actualizarIncidencia2
   
+incidencia_historico:
+  path: /incidencias/historico
+  controller: App\Controller\IncidenciaController::listarHistorialIncidencias
+ 
 actualizar_contrasenya:
   path: /usuario/resetpassword
   controller: App\Controller\UsuarioController::resetpassword
@@ -64,9 +63,5 @@ actualizar_contrasenya:
 enviar_correo:
   path: /usuario/enviarcorreo
   controller: App\Controller\UsuarioController::enviarcorreo
-# cliente:
-#     resource: App\Controller\ClienteController
-#     type: annotation
 
-# routes.yaml
 

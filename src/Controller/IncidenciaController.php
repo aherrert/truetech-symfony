@@ -3,17 +3,18 @@
 namespace App\Controller;
 
 use App\Entity\Incidencia;
+use App\Entity\IncidenciaHistorial;
 use App\Entity\Usuario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\Filesystem\Filesystem;
-
 
 
 class IncidenciaController extends AbstractController
@@ -149,8 +150,17 @@ class IncidenciaController extends AbstractController
         try {
             $this->entityManager->persist($incidencia);
             $this->entityManager->flush();
+
+            // Crear un nuevo registro en la tabla incidencia_historial
+            $incidenciaHistorial = new IncidenciaHistorial();
+            $incidenciaHistorial->setIncidencia($incidencia);
+            $incidenciaHistorial->setEstado($estado);
+
+            // Persistir el historial de incidencia en la base de datos
+            $this->entityManager->persist($incidenciaHistorial);
+            $this->entityManager->flush();
         } catch (\Exception $e) {
-            return new JsonResponse(['status' => 'KO', 'message' => 'Error al persistir la incidencia'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error al persistir la incidencia o el historial: ' . $e->getMessage()], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         return new JsonResponse(['status' => 'OK', 'message' => 'Incidencia creada correctamente'], JsonResponse::HTTP_CREATED);
@@ -211,86 +221,310 @@ class IncidenciaController extends AbstractController
     }
 
 
-
-
-
-
-
-
-
-
-
     /**
-     * @Route("/incidencias/ver", name="ver_incidencias_usuario_cargo_2", methods={"GET"})
+     * @Route("/incidencias/empleado", name="listar_incidencias_empleado", methods={"POST"})
      */
-    public function verIncidenciasUsuarioCargo2(): JsonResponse
+    public function listarIncidenciasEmpleado(Request $request, ValidatorInterface $validator): JsonResponse
     {
-        // Obtener el usuario con id_cargo 2
-        $usuarioCargo2 = $this->entityManager->getRepository(Usuario::class)->findOneBy(['idCargo' => 2]);
-        if ($usuarioCargo2 === null) {
-            throw new AccessDeniedException('No se encontró un usuario con el cargo requerido');
+        // Obtener el token del encabezado de la solicitud
+        $token = $request->headers->get('Authorization');
+
+        // Verificar si se proporcionó el token
+        if (!$token) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se proporcionó el token'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        // Obtener las incidencias asociadas al usuario con id_cargo 2
-        $incidencias = $this->entityManager->getRepository(Incidencia::class)->findBy(['empleado' => $usuarioCargo2]);
+        // Separar el token del prefijo "Bearer"
+        $token = str_replace('Bearer ', '', $token);
+
+        // Verificar la validez del token JWT enviado por el cliente
+        try {
+            // Decodificar el token JWT y obtener el ID del empleado y su rol
+            $decodedToken = $this->decodeJwtToken3($token);
+            $empleadoId = $decodedToken['id'];
+            $rol = $decodedToken['rol'];
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Verificar si el rol es igual a 2 (representando el rol del empleado)
+        if ($rol !== 2) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No tiene permiso para acceder a esta funcionalidad'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        // Obtener las incidencias asociadas al empleado_id
+        $incidencias = $this->entityManager->getRepository(Incidencia::class)->findBy(['empleado' => $empleadoId]);
+
+        // Verificar si se encontraron incidencias
+        if (empty($incidencias)) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se encontraron incidencias asociadas al empleado_id proporcionado'], JsonResponse::HTTP_NOT_FOUND);
+        }
 
         // Convertir las incidencias a un arreglo para la respuesta JSON
         $incidenciasArray = [];
         foreach ($incidencias as $incidencia) {
+            // Construir la ruta relativa para la imagen
+
             $incidenciasArray[] = [
                 'id' => $incidencia->getId(),
-                'nombre_completo' => $incidencia->getNombreCompleto(),
                 'asunto_reparacion' => $incidencia->getAsuntoReparacion(),
                 'mensaje_reparacion' => $incidencia->getMensajeReparacion(),
                 'estado' => $incidencia->getEstado(),
-                'email' => $incidencia->getEmail(),
+                'imagen' => $incidencia->getImagen(),
+                // Agrega más campos si es necesario
             ];
         }
 
         return new JsonResponse(['status' => 'OK', 'incidencias' => $incidenciasArray], JsonResponse::HTTP_OK);
     }
 
+
     /**
-     * @Route("/actualizarTicket", name="actualizar_ticket", methods={"POST"})
+     * @Route("/incidencias/empleado", name="listar_incidencias_empleado", methods={"POST"})
      */
-    public function actualizarTicket(Request $request, ValidatorInterface $validator, EntityManagerInterface $entityManager): JsonResponse
+    public function listarIncidenciasEmpleado2(Request $request, ValidatorInterface $validator): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        // Verificar si los datos esperados están presentes en el arreglo $data
+        // Obtener el token del encabezado de la solicitud
+        $token = $request->headers->get('Authorization');
 
-
-        if (!isset($data['id']) || !isset($data['nuevoEstado'])) {
-            return $this->json(['status' => 'KO', 'message' => 'Faltan datos requeridos para actualizar el ticket'], JsonResponse::HTTP_BAD_REQUEST);
+        // Verificar si se proporcionó el token
+        if (!$token) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se proporcionó el token'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        // Buscar el ticket por su ID
-        $ticket = $entityManager->getRepository(Incidencia::class)->find($data['id']);
+        // Separar el token del prefijo "Bearer"
+        $token = str_replace('Bearer ', '', $token);
 
-        // Verificar si el ticket existe
-        if (!$ticket) {
-            return $this->json(['status' => 'KO', 'message' => 'No se encontró el ticket con el ID proporcionado'], JsonResponse::HTTP_NOT_FOUND);
+        // Verificar la validez del token JWT enviado por el cliente
+        try {
+            // Decodificar el token JWT y obtener el ID del empleado y su rol
+            $decodedToken = $this->decodeJwtToken3($token);
+            $empleadoId = $decodedToken['id'];
+            $rol = $decodedToken['rol'];
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Verificar si el rol es igual a 2 (representando el rol del empleado)
+        if ($rol !== 3) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No tiene permiso para acceder a esta funcionalidad'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        // Obtener las incidencias asociadas al empleado_id
+        $incidencias = $this->entityManager->getRepository(Incidencia::class)->findBy(['empleado' => $empleadoId]);
+
+        // Verificar si se encontraron incidencias
+        if (empty($incidencias)) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se encontraron incidencias asociadas al empleado_id proporcionado'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // Convertir las incidencias a un arreglo para la respuesta JSON
+        $incidenciasArray = [];
+        foreach ($incidencias as $incidencia) {
+            // Construir la ruta relativa para la imagen
+
+            $incidenciasArray[] = [
+                'id' => $incidencia->getId(),
+                'asunto_reparacion' => $incidencia->getAsuntoReparacion(),
+                'mensaje_reparacion' => $incidencia->getMensajeReparacion(),
+                'estado' => $incidencia->getEstado(),
+                'imagen' => $incidencia->getImagen(),
+                // Agrega más campos si es necesario
+            ];
+        }
+
+        return new JsonResponse(['status' => 'OK', 'incidencias' => $incidenciasArray], JsonResponse::HTTP_OK);
+    }
+
+
+    /**
+     * @Route("/incidencias/actualizar", name="actualizar_incidencia", methods={"POST"})
+     */
+    public function actualizarIncidencia(Request $request, ValidatorInterface $validator): JsonResponse
+    {
+        // Obtener el cuerpo de la solicitud
+        $data = json_decode($request->getContent(), true);
+
+        // Obtener el token del cuerpo de la solicitud
+        $token = $data['token'] ?? null;
+
+        // Verificar si se proporcionó el token
+        if (!$token) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se proporcionó el token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Verificar la validez del token JWT enviado por el cliente
+        try {
+            // Decodificar el token JWT y obtener el ID del empleado y su rol
+            $decodedToken = $this->decodeJwtToken3($token);
+            $empleadoId = $decodedToken['id'];
+            $rol = $decodedToken['rol'];
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Verificar si el rol es igual a 2 (representando el rol del empleado)
+        if ($rol !== 2) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No tiene permiso para acceder a esta funcionalidad'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        // Obtener el ID del ticket a actualizar y el nuevo estado del cuerpo de la solicitud
+        $ticketId = $data['id'] ?? null;
+        $nuevoEstado = $data['estado'] ?? null;
+
+        // Verificar si se proporcionó el ID del ticket y el nuevo estado
+        if ($ticketId === null || $nuevoEstado === null) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Se requiere proporcionar el ID del ticket y el nuevo estado'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Obtener la incidencia asociada al ID del ticket
+        $incidencia = $this->entityManager->getRepository(Incidencia::class)->find($ticketId);
+
+        // Verificar si se encontró la incidencia
+        if (!$incidencia) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se encontró la incidencia asociada al ID proporcionado'], JsonResponse::HTTP_NOT_FOUND);
         }
 
         // Actualizar el estado del ticket
-        $ticket->setEstado($data['nuevoEstado']);
+        $incidencia->setEstado($nuevoEstado);
 
-        // Validar el ticket actualizado utilizando el validador
-        $errors = $validator->validate($ticket);
+        // Crear una nueva entrada en incidencia_historial
+        $historial = new IncidenciaHistorial();
+        $historial->setIncidencia($incidencia);
+        $historial->setEstado($nuevoEstado);
 
-        if (count($errors) > 0) {
-            // Construir un arreglo con los mensajes de error
-            $errorMessages = [];
-            foreach ($errors as $error) {
-                $errorMessages[] = $error->getMessage();
-            }
-            return $this->json(['status' => 'KO', 'message' => 'Los datos del ticket son inválidos', 'errors' => $errorMessages], JsonResponse::HTTP_BAD_REQUEST);
+        // Persistir el historial en la base de datos
+        $this->entityManager->persist($historial);
+
+        // Guardar los cambios en la incidencia y el historial
+        try {
+            $this->entityManager->flush();
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error al persistir la incidencia y el historial'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        // Guardar los cambios en la base de datos
-        $entityManager->flush();
-
-        return $this->json(['status' => 'OK', 'message' => 'Estado del ticket actualizado correctamente'], JsonResponse::HTTP_OK);
+        return new JsonResponse(['status' => 'OK', 'message' => 'Estado del ticket actualizado correctamente'], JsonResponse::HTTP_OK);
     }
+
+
+    /**
+     * @Route("/incidencias/actualizar", name="actualizar_incidencia", methods={"POST"})
+     */
+    public function actualizarIncidencia2(Request $request, ValidatorInterface $validator): JsonResponse
+    {
+        // Obtener el cuerpo de la solicitud
+        $data = json_decode($request->getContent(), true);
+
+        // Obtener el token del cuerpo de la solicitud
+        $token = $data['token'] ?? null;
+
+        // Verificar si se proporcionó el token
+        if (!$token) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se proporcionó el token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Verificar la validez del token JWT enviado por el cliente
+        try {
+            // Decodificar el token JWT y obtener el ID del empleado y su rol
+            $decodedToken = $this->decodeJwtToken3($token);
+            $empleadoId = $decodedToken['id'];
+            $rol = $decodedToken['rol'];
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Verificar si el rol es igual a 2 (representando el rol del empleado)
+        if ($rol !== 3) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No tiene permiso para acceder a esta funcionalidad'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        // Obtener el ID del ticket a actualizar y el nuevo estado del cuerpo de la solicitud
+        $data = json_decode($request->getContent(), true);
+        $ticketId = $data['id'] ?? null;
+        $nuevoEstado = $data['estado'] ?? null;
+
+        // Verificar si se proporcionó el ID del ticket y el nuevo estado
+        if ($ticketId === null || $nuevoEstado === null) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Se requiere proporcionar el ID del ticket y el nuevo estado'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Obtener la incidencia asociada al ID del ticket
+        $incidencia = $this->entityManager->getRepository(Incidencia::class)->find($ticketId);
+
+        // Verificar si se encontró la incidencia
+        if (!$incidencia) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No se encontró la incidencia asociada al ID proporcionado'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // Actualizar el estado del ticket
+        $incidencia->setEstado($nuevoEstado);
+        $this->entityManager->flush();
+
+        return new JsonResponse(['status' => 'OK', 'message' => 'Estado del ticket actualizado correctamente'], JsonResponse::HTTP_OK);
+    }
+
+
+    /**
+     * @Route("/incidencias/historial", name="listar_historial_incidencias", methods={"POST"})
+     */
+    public function listarHistorialIncidencias(Request $request): Response
+    {
+        // Obtener los datos JSON de la solicitud
+        $data = json_decode($request->getContent(), true);
+
+        // Verificar si se proporcionó el ID y el token
+        if (!isset($data['id']) || !isset($data['token'])) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Se requiere proporcionar el ID y el token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $id = $data['id'];
+        $token = $data['token'];
+
+        // Verificar la validez del token JWT enviado por el cliente
+        try {
+            $decodedToken = $this->decodeJwtToken3($token);
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Obtener el ID del empleado y su rol del token decodificado
+        $empleadoId = $decodedToken['id'];
+        $rol = $decodedToken['rol'];
+
+        // Verificar si el rol es igual a 2 (representando el rol del empleado)
+        if ($rol !== 2 && $rol !== 3) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'No tiene permiso para acceder a esta funcionalidad'], JsonResponse::HTTP_FORBIDDEN);
+        }
+
+        // Obtener el historial de incidencias asociado al ID de incidencia
+        $historialIncidencias = $this->entityManager->getRepository(IncidenciaHistorial::class)->findBy(['incidencia' => $id]);
+
+        // Convertir el historial de incidencias a un arreglo para la respuesta JSON
+        $historialArray = [];
+        foreach ($historialIncidencias as $historial) {
+            $historialArray[] = [
+                'id' => $historial->getId(),
+                'incidencia_id' => $historial->getIncidencia()->getId(),
+                'estado' => $historial->getEstado(),
+                'created_at' => $historial->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updated_at' => $historial->getUpdatedAt()->format('Y-m-d H:i:s')
+            ];
+        }
+
+        return new JsonResponse(['status' => 'OK', 'historial_incidencias' => $historialArray], JsonResponse::HTTP_OK);
+    }
+
+
     private function decodeJwtToken1(string $token, string $email)
     {
         // Dividir el token en partes separadas
@@ -330,6 +564,8 @@ class IncidenciaController extends AbstractController
             'payload' => $payload
         ];
     }
+
+
     private function decodeJwtToken2(string $token)
     {
         // Dividir el token en partes separadas
@@ -362,6 +598,43 @@ class IncidenciaController extends AbstractController
         // Devolver el payload decodificado junto con el ID del usuario
         return [
             'id' => $payload['id'],
+            'payload' => $payload
+        ];
+    }
+
+    
+    private function decodeJwtToken3(string $token)
+    {
+        // Dividir el token en partes separadas
+        $tokenParts = explode('.', $token);
+
+        // Verificar si el token tiene tres partes
+        if (count($tokenParts) !== 3) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Decodificar la segunda parte (payload) del token
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+
+        // Verificar si se pudo decodificar el payload
+        if (!$payload) {
+            throw new AccessDeniedException('Token inválido');
+        }
+
+        // Verificar si el token ha expirado
+        if (isset($payload['exp']) && $payload['exp'] < time()) {
+            throw new AccessDeniedException('Token expirado');
+        }
+
+        // Verificar si se incluye el ID del usuario y el rol en el payload
+        if (!isset($payload['id']) || !isset($payload['rol'])) {
+            throw new AccessDeniedException('ID de usuario o rol no encontrados en el token');
+        }
+
+        // Devolver el payload decodificado junto con el ID del usuario y el rol
+        return [
+            'id' => $payload['id'],
+            'rol' => $payload['rol'],
             'payload' => $payload
         ];
     }
