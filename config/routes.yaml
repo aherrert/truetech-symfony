@@ -28,6 +28,10 @@ perfil_usuario:
   path: /usuario/editarPerfil
   controller: App\Controller\UsuarioController::editarPerfil
 
+contraseña_usuario:
+  path: /usuario/cambiarContrasena
+  controller: App\Controller\UsuarioController::cambiarContraseña
+
 nueva_incidencia:
   path: /incidencia/registrar
   controller: App\Controller\IncidenciaController::nuevaIncidencia
