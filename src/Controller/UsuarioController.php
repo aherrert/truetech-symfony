@@ -32,6 +32,7 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mime\Email;
+
 class UsuarioController extends AbstractController
 {
     private $entityManager;
@@ -73,7 +74,7 @@ class UsuarioController extends AbstractController
         $usuario->setPassword($data['password']);
 
         // Establecer el rol automáticamente
-        $usuario->setIdCargo(4); // Por ejemplo, aquí establecemos el rol como 'usuario'
+        $usuario->setIdCargo(3); // Por ejemplo, aquí establecemos el rol como 'usuario'
         // $usuario->setRol('empleado'); // Por ejemplo, aquí establecemos el rol como 'usuario'
         // $usuario->setRol('administrador'); // Por ejemplo, aquí establecemos el rol como 'usuario'
 
@@ -166,12 +167,9 @@ class UsuarioController extends AbstractController
         $data = json_decode($request->getContent(), true);
 
         // Verificar si los datos esperados están presentes en el arreglo $data
-        if (!isset($data['email']) || !isset($data['nombre']) || !isset($data['apellidos']) || !isset($data['password']) || !isset($data['token'])) {
+        if (!isset($data['email']) || !isset($data['token'])) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
         }
-
-        // Verificar la validez del token JWT enviado por el cliente
-        $token = $data['token'];
 
         // Verificar la validez del token JWT enviado por el cliente
         $token = $data['token'];
@@ -191,9 +189,15 @@ class UsuarioController extends AbstractController
             return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
         }
 
-        $usuario->setNombre($data['nombre']);
-        $usuario->setApellidos($data['apellidos']);
-        $usuario->setPassword($data['password']);
+        // Actualizar el nombre si se proporciona en los datos
+        if (isset($data['nombre'])) {
+            $usuario->setNombre($data['nombre']);
+        }
+
+        // Actualizar los apellidos si se proporcionan en los datos
+        if (isset($data['apellidos'])) {
+            $usuario->setApellidos($data['apellidos']);
+        }
 
         // Validar el usuario utilizando el validador
         $errors = $validator->validate($usuario);
@@ -211,6 +215,63 @@ class UsuarioController extends AbstractController
 
         return new JsonResponse(['status' => 'OK', 'message' => 'Perfil actualizado correctamente'], JsonResponse::HTTP_OK);
     }
+
+
+    /**
+     * @Route("/cambiarcontraseña", name="cambiar_contraseña")
+     */
+    public function cambiarContraseña(Request $request, ValidatorInterface $validator): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        // Verificar si los datos esperados están presentes en el arreglo $data
+        if (!isset($data['token']) || !isset($data['password']) || !isset($data['newPassword'])|| !isset($data['email'])) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        // Verificar la validez del token JWT enviado por el cliente
+        $token = $data['token'];
+
+        try {
+            // Decodificar el token JWT y verificar el correo electrónico
+            $decodedToken = $this->decodeJwtToken($token, $data['email']);
+        } catch (AccessDeniedException $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => $e->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        // Obtener el usuario por su correo electrónico
+        $usuario = $this->entityManager->getRepository(Usuario::class)->findOneBy(['email' => $decodedToken['email']]);
+
+        // Verificar si el usuario existe
+        if (!$usuario) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        // Verificar si la contraseña actual coincide con la almacenada en la base de datos
+        if ($usuario->getPassword() !== $data['password']) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Contraseña actual incorrecta'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        // Establecer la nueva contraseña
+        $usuario->setPassword($data['newPassword']);
+
+        // Validar el usuario utilizando el validador
+        $errors = $validator->validate($usuario);
+
+        if (count($errors) > 0) {
+            // Construir un arreglo con los mensajes de error
+            $errorMessages = [];
+            foreach ($errors as $error) {
+                $errorMessages[] = $error->getMessage();
+            }
+            return new JsonResponse(['status' => 'KO', 'message' => 'Los datos ingresados no son válidos'], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $this->entityManager->flush();
+
+        return new JsonResponse(['status' => 'OK', 'message' => 'Contraseña actualizada correctamente'], JsonResponse::HTTP_OK);
+    }
+
 
     private function decodeJwtToken(string $token, string $email)
     {
@@ -264,7 +325,7 @@ class UsuarioController extends AbstractController
         }
 
         // Permitir la modificación de la contra
-        
+
         $usuario->setPassword($data['password']);
 
         // Validar el usuario utilizando el validador
@@ -289,7 +350,7 @@ class UsuarioController extends AbstractController
      */
     public function enviarcorreo(Request $request, ValidatorInterface $validator, MailerInterface $mailer): JsonResponse
     {
-        
+
         $data = json_decode($request->getContent(), true);
 
         // Verificar si los datos esperados están presentes en el arreglo $data
@@ -303,13 +364,12 @@ class UsuarioController extends AbstractController
         // Verificar si el usuario existe
         if (!$usuario) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
-            
         }
 
 
         // Validar el usuario utilizando el validador
         $errors = $validator->validate($usuario);
-        
+
         if (count($errors) > 0) {
             // Construir un arreglo con los mensajes de error
             $errorMessages = [];
@@ -320,10 +380,10 @@ class UsuarioController extends AbstractController
         }
         // creant un objecte Transporte
         $transport = Transport::fromDsn('smtp://truetrech.s.a@gmail.com:prnkijuhefdtmfku@smtp.gmail.com:587');
-        
+
         // creant un objecte Mailer
         $mailer = new Mailer($transport);
-        
+
         // creant un objecte Email
         $email = (new Email());
 
@@ -332,18 +392,19 @@ class UsuarioController extends AbstractController
 
         //establir "a l'adreça"
         $email->to($usuario->getEmail());
-        
+
         // establir un "assumpte"
         $email->subject('Cambiar Contraseña TRUETECH');
 
         // establiu el "cos" de text sense format
         $email->text(
-            'Este enlace sirve para cambiar la contraseña de nuestra página web: '.
-            ' http://localhost:4200/resetpassword');
-        
+            'Este enlace sirve para cambiar la contraseña de nuestra página web: ' .
+                ' http://localhost:4200/resetpassword'
+        );
+
         // Envia un correu electrònic
         $mailer->send($email);
-        
+
         // // $destino="truetrech.s.a@gmail.com";
         // //$contenido="hola:";
         // // mail($usuario,"contacto",$contenido);
@@ -355,7 +416,7 @@ class UsuarioController extends AbstractController
         //     // $email->replyTo('mailtrap@truetech.com');
         //     // $mailer->send($email);
         // //CONFIGURACIO CON ADRIA NIVI
-            
+
 
         //     $to = $usuario->getEmail();
         //     $subject = "la teva contrasenya";
@@ -365,7 +426,5 @@ class UsuarioController extends AbstractController
 
 
         return new JsonResponse(['status' => 'OK', 'message' => 'Perfil actualizado correctamente'], JsonResponse::HTTP_OK);
-        
-        
     }
 }

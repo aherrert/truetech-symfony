@@ -39,7 +39,6 @@ class IncidenciaController extends AbstractController
             return new JsonResponse(['status' => 'KO', 'message' => 'Faltan datos en la solicitud'], JsonResponse::HTTP_BAD_REQUEST);
         }
         $idCargo = $data['id_cargo']; // Asegúrate de que estás accediendo correctamente al id_cargo
-
         // Obtener los usuarios con el id de cargo correspondiente
         $usuariosCargo = $this->entityManager->getRepository(Usuario::class)->findBy(['idCargo' => $idCargo]);
 
@@ -466,7 +465,21 @@ class IncidenciaController extends AbstractController
 
         // Actualizar el estado del ticket
         $incidencia->setEstado($nuevoEstado);
-        $this->entityManager->flush();
+
+        // Crear una nueva entrada en incidencia_historial
+        $historial = new IncidenciaHistorial();
+        $historial->setIncidencia($incidencia);
+        $historial->setEstado($nuevoEstado);
+
+        // Persistir el historial en la base de datos
+        $this->entityManager->persist($historial);
+
+        // Guardar los cambios en la incidencia y el historial
+        try {
+            $this->entityManager->flush();
+        } catch (\Exception $e) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Error al persistir la incidencia y el historial'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
         return new JsonResponse(['status' => 'OK', 'message' => 'Estado del ticket actualizado correctamente'], JsonResponse::HTTP_OK);
     }
@@ -602,7 +615,7 @@ class IncidenciaController extends AbstractController
         ];
     }
 
-    
+
     private function decodeJwtToken3(string $token)
     {
         // Dividir el token en partes separadas
