@@ -312,7 +312,7 @@ class UsuarioController extends AbstractController
         $data = json_decode($request->getContent(), true);
 
         // Verificar si los datos esperados están presentes en el arreglo $data
-        if (!isset($data['email']) || !isset($data['password'])) {
+        if (!isset($data['email']) || !isset($data['password'])||!isset($data['id'])) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
@@ -323,7 +323,9 @@ class UsuarioController extends AbstractController
         if (!$usuario) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
         }
-
+        if ($usuario->getId() !== $data['id']) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Contraseña incorrecta'], JsonResponse::HTTP_UNAUTHORIZED);
+        }
         // Permitir la modificación de la contra
 
         $usuario->setPassword($data['password']);
@@ -360,9 +362,8 @@ class UsuarioController extends AbstractController
 
         // Obtener el usuario por su correo electrónico
         $usuario = $this->entityManager->getRepository(Usuario::class)->findOneBy(['email' => $data['email']]);
-
         // Verificar si el usuario existe
-        if (!$usuario) {
+        if (!$usuario ==$id) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
         }
 
@@ -392,14 +393,15 @@ class UsuarioController extends AbstractController
 
         //establir "a l'adreça"
         $email->to($usuario->getEmail());
-
+        $id = ($usuario->getId());
         // establir un "assumpte"
         $email->subject('Cambiar Contraseña TRUETECH');
 
         // establiu el "cos" de text sense format
         $email->text(
             'Este enlace sirve para cambiar la contraseña de nuestra página web: ' .
-                ' http://localhost:4200/resetpassword'
+                ' http://localhost:4200/resetpassword ' .
+                ' identificador para verificar el usuario que quieres cambiar la contraseña: '.$id
         );
 
         // Envia un correu electrònic
