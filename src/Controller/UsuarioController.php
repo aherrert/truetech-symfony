@@ -363,7 +363,7 @@ class UsuarioController extends AbstractController
         // Obtener el usuario por su correo electrónico
         $usuario = $this->entityManager->getRepository(Usuario::class)->findOneBy(['email' => $data['email']]);
         // Verificar si el usuario existe
-        if (!$usuario ==$id) {
+        if (!$usuario ) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Usuario no encontrado'], JsonResponse::HTTP_NOT_FOUND);
         }
 
@@ -401,7 +401,7 @@ class UsuarioController extends AbstractController
         $email->text(
             'Este enlace sirve para cambiar la contraseña de nuestra página web: ' .
                 ' http://localhost:4200/resetpassword ' .
-                ' identificador para verificar el usuario que quieres cambiar la contraseña: '.$id
+                ' Usa este identificador para verificar tu identidad: '.$id
         );
 
         // Envia un correu electrònic
