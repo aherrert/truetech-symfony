@@ -57,7 +57,7 @@ class AdminController extends AbstractController
         // Verificar si el correo electrónico ya está en uso
         $existingUser = $this->usuarioRepository->findOneByEmail($data['email']);
         if ($existingUser) {
-            return new JsonResponse(['status' => 'KO', 'message' => 'El correo electrónico ya está en uso'], JsonResponse::HTTP_BAD_REQUEST);
+            return new JsonResponse(['status' => 'KO', 'message' => 'El correo electrónico ya está en uso'], JsonResponse::HTTP_CONFLICT); // Usamos el código 409 Conflict para indicar que el recurso ya existe
         }
 
         $usuario->setNombre($data['nombre']);

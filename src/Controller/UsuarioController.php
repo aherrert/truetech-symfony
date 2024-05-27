@@ -48,7 +48,6 @@ class UsuarioController extends AbstractController
     }
 
 
-    /*REGISTRO USUARIO*/
     /**
      * @Route("/registro", name="registro_usuario")
      */
@@ -60,6 +59,7 @@ class UsuarioController extends AbstractController
 
         // Verificar si los datos esperados están presentes en el arreglo $data
         if (!isset($data['nombre']) || !isset($data['apellidos']) || !isset($data['email']) || !isset($data['password'])) {
+            return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
         // Verificar si el correo electrónico ya está en uso
@@ -74,9 +74,7 @@ class UsuarioController extends AbstractController
         $usuario->setPassword($data['password']);
 
         // Establecer el rol automáticamente
-        $usuario->setIdCargo(3); // Por ejemplo, aquí establecemos el rol como 'usuario'
-        // $usuario->setRol('empleado'); // Por ejemplo, aquí establecemos el rol como 'usuario'
-        // $usuario->setRol('administrador'); // Por ejemplo, aquí establecemos el rol como 'usuario'
+        $usuario->setIdCargo(4);
 
         // Validar el usuario utilizando el validador
         $errors = $validator->validate($usuario);
@@ -87,12 +85,14 @@ class UsuarioController extends AbstractController
             foreach ($errors as $error) {
                 $errorMessages[] = $error->getMessage();
             }
-            return new JsonResponse(['status' => 'KO', 'message' => 'El correo electrónico ya está en uso'], JsonResponse::HTTP_BAD_REQUEST);
+            return new JsonResponse(['status' => 'KO', 'message' => $errorMessages], JsonResponse::HTTP_BAD_REQUEST);
         }
+
         $this->entityManager->persist($usuario);
         $this->entityManager->flush();
         return new JsonResponse(['status' => 'OK', 'message' => 'Usuario registrado correctamente'], JsonResponse::HTTP_OK);
     }
+
 
 
     /**
@@ -110,7 +110,7 @@ class UsuarioController extends AbstractController
         // Buscar el usuario por su correo electrónico en el repositorio
         $usuario = $this->usuarioRepository->findOneBy(['email' => $data['email']]);
         if (!$usuario) {
-            return new JsonResponse(['status' => 'KO', 'message' => 'Correo electrónico no encontrado'], JsonResponse::HTTP_NOT_FOUND);
+            return new JsonResponse(['status' => 'KO', 'message' => 'Correo electrónico inválido'], JsonResponse::HTTP_NOT_FOUND);
         }
 
         // Verificar la contraseña sin cifrar
@@ -225,7 +225,7 @@ class UsuarioController extends AbstractController
         $data = json_decode($request->getContent(), true);
 
         // Verificar si los datos esperados están presentes en el arreglo $data
-        if (!isset($data['token']) || !isset($data['password']) || !isset($data['newPassword'])|| !isset($data['email'])) {
+        if (!isset($data['token']) || !isset($data['password']) || !isset($data['newPassword']) || !isset($data['email'])) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Datos incompletos'], JsonResponse::HTTP_BAD_REQUEST);
         }
 
