@@ -247,7 +247,6 @@ class IncidenciaController extends AbstractController
         } catch (\Exception $e) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
         }
-
         // Verificar si el rol es igual a 2 (representando el rol del empleado)
         if ($rol !== 2) {
             return new JsonResponse(['status' => 'KO', 'message' => 'No tiene permiso para acceder a esta funcionalidad'], JsonResponse::HTTP_FORBIDDEN);
@@ -347,15 +346,12 @@ class IncidenciaController extends AbstractController
     {
         // Obtener el cuerpo de la solicitud
         $data = json_decode($request->getContent(), true);
-
         // Obtener el token del cuerpo de la solicitud
         $token = $data['token'] ?? null;
-
         // Verificar si se proporcionó el token
         if (!$token) {
             return new JsonResponse(['status' => 'KO', 'message' => 'No se proporcionó el token'], JsonResponse::HTTP_BAD_REQUEST);
         }
-
         // Verificar la validez del token JWT enviado por el cliente
         try {
             // Decodificar el token JWT y obtener el ID del empleado y su rol
@@ -367,21 +363,17 @@ class IncidenciaController extends AbstractController
         } catch (\Exception $e) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Error en la decodificación del token'], JsonResponse::HTTP_BAD_REQUEST);
         }
-
         // Verificar si el rol es igual a 2 (representando el rol del empleado)
         if ($rol !== 2) {
             return new JsonResponse(['status' => 'KO', 'message' => 'No tiene permiso para acceder a esta funcionalidad'], JsonResponse::HTTP_FORBIDDEN);
         }
-
         // Obtener el ID del ticket a actualizar y el nuevo estado del cuerpo de la solicitud
         $ticketId = $data['id'] ?? null;
         $nuevoEstado = $data['estado'] ?? null;
-
         // Verificar si se proporcionó el ID del ticket y el nuevo estado
         if ($ticketId === null || $nuevoEstado === null) {
             return new JsonResponse(['status' => 'KO', 'message' => 'Se requiere proporcionar el ID del ticket y el nuevo estado'], JsonResponse::HTTP_BAD_REQUEST);
         }
-
         // Obtener la incidencia asociada al ID del ticket
         $incidencia = $this->entityManager->getRepository(Incidencia::class)->find($ticketId);
 
@@ -389,18 +381,14 @@ class IncidenciaController extends AbstractController
         if (!$incidencia) {
             return new JsonResponse(['status' => 'KO', 'message' => 'No se encontró la incidencia asociada al ID proporcionado'], JsonResponse::HTTP_NOT_FOUND);
         }
-
         // Actualizar el estado del ticket
         $incidencia->setEstado($nuevoEstado);
-
         // Crear una nueva entrada en incidencia_historial
         $historial = new IncidenciaHistorial();
         $historial->setIncidencia($incidencia);
         $historial->setEstado($nuevoEstado);
-
         // Persistir el historial en la base de datos
         $this->entityManager->persist($historial);
-
         // Guardar los cambios en la incidencia y el historial
         try {
             $this->entityManager->flush();
